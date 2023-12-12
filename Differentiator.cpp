@@ -14,9 +14,7 @@ enum Operators
     OP_SUB,
     OP_MUL,
     OP_DIV,
-    OP_SQRT,
-    OP_SIN,
-    OP_COS
+    OP_POW
 };
 
 enum TypeElem
@@ -27,8 +25,8 @@ enum TypeElem
 
 union Data
 {
-    double  value;
-    char*   op;
+    double      value;
+    Operators   op;
 };
 
 struct NodeData
@@ -42,7 +40,11 @@ void  elem_dtor(void* elem);
 void  write_elem(FILE* fp, void* elem);
 
 void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf);
+Operators define_operator(char* command);
 NodeData* get_object(char** buf);
+double calculate_expression(TreeNode* node);
+
+double pow(double x, int n);
 
 const char* nameFile = "Expression.txt";
 const char* nameFileDot = "Dump.dot";
@@ -58,8 +60,9 @@ int main()
     write_expression_in_tree(tree, &tree->root, &buf);
     tree_graphic_dump(tree, nameFileDot, nameFilePng);
 
-    tree_dtor(tree);
+    printf("%lf", calculate_expression(tree->root));
 
+    tree_dtor(tree);
     return 0;
 }
 
@@ -74,7 +77,7 @@ void* elem_ctor(void* elem)
     if(((NodeData*)elem)->type == OPERATOR)
     {
         data->type = OPERATOR;
-        data->elem.op = strdup(((NodeData*)elem)->elem.op);
+        data->elem.op = ((NodeData*)elem)->elem.op;
     }
     else
     {
@@ -87,9 +90,6 @@ void* elem_ctor(void* elem)
 
 void elem_dtor(void* elem)
 {
-    assert(elem != nullptr);
-
-    free(((NodeData*)elem)->elem.op);
     free(elem);
 }
 
@@ -101,7 +101,29 @@ void  write_elem(FILE* fp, void* elem)
     if(((NodeData*)elem)->type == NUM)
         fprintf(fp, "%.2lf", ((NodeData*)elem)->elem.value);
     else
-        fprintf(fp, "%s", ((NodeData*)elem)->elem.op);
+    {
+        switch(((NodeData*)elem)->elem.op)
+        {
+            case OP_ADD:
+                fprintf(fp, "%c", '+');
+                break;
+            case OP_SUB:
+                fprintf(fp, "%c", '-');
+                break;
+            case OP_DIV:
+                fprintf(fp, "%c", '/');
+                break;
+            case OP_MUL:
+                fprintf(fp, "%c", '*');
+                break;
+            case OP_POW:
+                fprintf(fp, "%c", '^');
+                break;
+            default:
+                assert("Unknown operator");
+                break;
+        }
+    }
 }
 
 void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf)
@@ -140,6 +162,22 @@ void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf)
     write_expression_in_tree(tree, &((*node)->rightNode), buf);
 }
 
+Operators define_operator(char* command)
+{
+    assert(command != nullptr);
+
+    if(!strcmp(command, "add"))
+        return OP_ADD;
+    if(!strcmp(command, "sub"))
+        return OP_SUB;
+    if(!strcmp(command, "div"))
+        return OP_DIV;
+    if(!strcmp(command, "mul"))
+        return OP_MUL;
+    if(!strcmp(command, "pow"))
+        return OP_POW;
+}
+
 NodeData* get_object(char** buf)
 {
     assert(buf != nullptr);
@@ -161,7 +199,7 @@ NodeData* get_object(char** buf)
     }
     else
     {
-        data->elem.op = strdup(object);
+        data->elem.op = define_operator(object);
         data->type = OPERATOR;
     }
 
@@ -169,4 +207,44 @@ NodeData* get_object(char** buf)
     free(object);
 
     return data;
+}
+
+double calculate_expression(TreeNode* node)
+{
+    if(node == nullptr)
+        return 0;
+
+    if(((NodeData*)(node->elem))->type == NUM)
+        return ((NodeData*)(node->elem))->elem.value;
+
+    double valueLeft  = calculate_expression(node->leftNode);
+    double valueRight = calculate_expression(node->rightNode);
+
+    switch(((NodeData*)(node->elem))->elem.op)
+    {
+        case OP_ADD:
+            return valueLeft + valueRight;
+        case OP_SUB:
+            return valueLeft - valueRight;
+        case OP_DIV:
+            return valueLeft / valueRight;
+        case OP_MUL:
+            return valueLeft * valueRight;
+        case OP_POW:
+            return pow(valueLeft, valueRight);
+        default:
+            assert("Unknown operator");
+    }
+
+    return -1;
+}
+
+double pow(double x, int n)
+{
+    assert(n < 0);
+
+    if(n == 1)
+        return 1;
+
+    return x * pow(x, n - 1);
 }
