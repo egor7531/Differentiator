@@ -21,14 +21,20 @@ enum Operators
 
 enum TypeElem
 {
-    NUM,
-    OPERATOR
+    OPERATOR,
+    NUM
+};
+
+union Data
+{
+    double  value;
+    char*   op;
 };
 
 struct NodeData
 {
     TypeElem    type;
-    char*       elem;
+    Data        elem;
 };
 
 void* elem_ctor(void* elem);
@@ -36,7 +42,7 @@ void  elem_dtor(void* elem);
 void  write_elem(FILE* fp, void* elem);
 
 void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf);
-char* get_object(char** buf);
+NodeData* get_object(char** buf);
 
 const char* nameFile = "Expression.txt";
 const char* nameFileDot = "Dump.dot";
@@ -65,7 +71,17 @@ void* elem_ctor(void* elem)
     if(data == nullptr)
         return nullptr;
 
-    data->elem = strdup((char*)elem);
+    if(((NodeData*)elem)->type == OPERATOR)
+    {
+        data->type = OPERATOR;
+        data->elem.op = strdup(((NodeData*)elem)->elem.op);
+    }
+    else
+    {
+        data->type = NUM;
+        data->elem.value = ((NodeData*)elem)->elem.value;
+    }
+
     return data;
 }
 
@@ -73,7 +89,7 @@ void elem_dtor(void* elem)
 {
     assert(elem != nullptr);
 
-    free(((NodeData*)elem)->elem);
+    free(((NodeData*)elem)->elem.op);
     free(elem);
 }
 
@@ -82,7 +98,10 @@ void  write_elem(FILE* fp, void* elem)
     assert(fp != nullptr);
     assert(elem != nullptr);
 
-    fprintf(fp, "%s", ((NodeData*)elem)->elem);
+    if(((NodeData*)elem)->type == NUM)
+        fprintf(fp, "%.2lf", ((NodeData*)elem)->elem.value);
+    else
+        fprintf(fp, "%s", ((NodeData*)elem)->elem.op);
 }
 
 void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf)
@@ -93,11 +112,10 @@ void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf)
     char object[MAX_SIZE_OBJECT] = {};
     sscanf(*buf, "%s", object);
     *buf += strlen(object) + 1;
-    printf("%s\n", object);
 
     if(!strcmp(object, "("))
     {
-        char* data = get_object(buf);
+        NodeData* data = get_object(buf);
         *node = tree_node_new(tree, data);
         if(*node == nullptr)
         {
@@ -122,16 +140,33 @@ void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf)
     write_expression_in_tree(tree, &((*node)->rightNode), buf);
 }
 
-char* get_object(char** buf)
+NodeData* get_object(char** buf)
 {
     assert(buf != nullptr);
+
+    NodeData* data = (NodeData*)calloc(1, sizeof(NodeData));
+    if(data == nullptr)
+        return nullptr;
 
     char* object = (char*)calloc(MAX_SIZE_OBJECT, sizeof(char));
     if(object == nullptr)
         return nullptr;
 
     sscanf(*buf, "%s", object);
+
+    if(isdigit(object[0]))
+    {
+        data->elem.value = atof(object);
+        data->type = NUM;
+    }
+    else
+    {
+        data->elem.op = strdup(object);
+        data->type = OPERATOR;
+    }
+
     *buf += strlen(object) + 1;
-    printf("%s\n", object);
-    return object;
+    free(object);
+
+    return data;
 }
