@@ -1,0 +1,37 @@
+digraph Tree
+{
+rankdir = TB;
+node0000020cf9affac0 [label = "+"];
+node0000020cf9affac0 -> node0000020cf9affd00;
+node0000020cf9affd00 [label = "+"];
+node0000020cf9affd00 -> node0000020cf9affd90;
+node0000020cf9affd90 [label = "+"];
+node0000020cf9affd90 -> node0000020cf9afffd0;
+node0000020cf9afffd0 [label = "3.00"];
+node0000020cf9affd90 -> node0000020cf9b00060;
+node0000020cf9b00060 [label = "*"];
+node0000020cf9b00060 -> node0000020cf9afff70;
+node0000020cf9afff70 [label = "5.00"];
+node0000020cf9b00060 -> node0000020cf9affa30;
+node0000020cf9affa30 [label = "1.00"];
+node0000020cf9affd00 -> node0000020cf9affaf0;
+node0000020cf9affaf0 [label = "*"];
+node0000020cf9affaf0 -> node0000020cf9aff9d0;
+node0000020cf9aff9d0 [label = "x"];
+node0000020cf9affaf0 -> node0000020cf9affca0;
+node0000020cf9affca0 [label = "+"];
+node0000020cf9affca0 -> node0000020cf9b00090;
+node0000020cf9b00090 [label = "5.00"];
+node0000020cf9affca0 -> node0000020cf9affdc0;
+node0000020cf9affdc0 [label = "3.00"];
+node0000020cf9affac0 -> node0000020cf9b00150;
+node0000020cf9b00150 [label = "/"];
+node0000020cf9b00150 -> node0000020cf9affcd0;
+node0000020cf9affcd0 [label = "1.00"];
+node0000020cf9b00150 -> node0000020cf9affbb0;
+node0000020cf9affbb0 [label = "-"];
+node0000020cf9affbb0 -> node0000020cf9affe80;
+node0000020cf9affe80 [label = "x"];
+node0000020cf9affbb0 -> node0000020cf9affb80;
+node0000020cf9affb80 [label = "1.00"];
+}

@@ -9,6 +9,13 @@
 #include "TreeDump.h"
 #include "File.h"
 
+/*
+function sum( op1, op2 )
+{
+    return op1 + op2;
+}
+*/
+
 enum Operators
 {
     OP_ADD,
@@ -46,14 +53,22 @@ void* elem_ctor(void* elem);
 void  elem_dtor(void* elem);
 void  write_elem(FILE* fp, void* elem);
 
-void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf);
+//void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf);
 Operators define_operator(char* command);
 NodeData* get_object(char** buf);
 double calculate_expression(TreeNode* node);
-void optimize_derivative(TreeNode** node);
+//void optimize_derivative(TreeNode** node);
 void get_derivative(Tree* tree, TreeNode* node);
 void print_derivative(const char* nameFile, const Tree* tree);
 void print_nodes(FILE* fp, const TreeNode* node);
+
+void get_G(Tree* tree, char** buf);
+TreeNode* get_E(char** buf);
+TreeNode* get_T(char** buf);
+TreeNode* get_P(char** buf);
+TreeNode* get_N(char** buf);
+TreeNode* get_ID(char** buf);
+void syn_assert(bool flag, const char *nameFunc, char **buf);
 
 const char* nameFileTxtEx  = "Expression.txt";
 const char* nameFileDotEx  = "Expression.dot";
@@ -70,13 +85,14 @@ int main()
     char* buf = get_file_content(nameFileTxtEx);
     Tree* expression = tree_ctor(elem_ctor, elem_dtor, write_elem);
 
-    write_expression_in_tree(expression, &expression->root, &buf);
+    get_G(expression, &buf);
+    print_derivative(nameFileTxtDer, expression);
     tree_graphic_dump(expression,  nameFileDotEx,  nameFilePngEx);
 
-    get_derivative(expression, expression->root);
+    /*get_derivative(expression, expression->root);
     tree_graphic_dump(expression,  nameFileDotDer,  nameFilePngDer);
 
-    print_derivative(nameFileTxtDer, expression);
+    print_derivative(nameFileTxtDer, expression);*/
 
     tree_dtor(expression);
     return 0;
@@ -161,7 +177,7 @@ void write_elem(FILE* fp, void* elem)
     }
 }
 
-void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf)
+/*void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf)
 {
     assert(tree != nullptr);
     assert(buf != nullptr);
@@ -196,7 +212,7 @@ void write_expression_in_tree(Tree* tree, TreeNode **node, char **buf)
     write_expression_in_tree(tree, &((*node)->leftNode), buf);
     write_expression_in_tree(tree, &((*node)->rightNode), buf);
 }
-
+*/
 Operators define_operator(char* command)
 {
     assert(command != nullptr);
@@ -342,7 +358,7 @@ void get_derivative(Tree* tree, TreeNode* node)
 {
     if(((NodeData*)(node->elem))->type == NUM)
         ((NodeData*)(node->elem))->elem.value = 0;
-    else
+     else
     {
         switch(((NodeData*)(node->elem))->elem.op)
         {
@@ -380,10 +396,204 @@ void print_nodes(FILE* fp, const TreeNode* node)
 
     if(node == nullptr)
         return;
-    fprintf(fp, "( ");
     print_nodes(fp, node->leftNode);
     write_elem(fp, node->elem);
-    fprintf(fp, " ");
     print_nodes(fp, node->rightNode);
-    fprintf(fp, ") ");
+}
+
+void syn_assert(bool flag, const char *nameFunc, char **buf)
+{
+    if(!flag)
+    {
+        printf("\"%s\" error: %s", nameFunc, *buf);
+        abort();
+    }
+}
+
+void get_G(Tree* tree, char** buf)
+{
+    tree->root = get_E(buf);
+    syn_assert(**buf == '\0' || **buf == '\r' || **buf == '\n', "get_G", buf);
+}
+
+TreeNode* get_E(char** buf)
+{
+    TreeNode* node1 = get_T(buf);
+    TreeNode* node = nullptr;
+
+    while(**buf == '+' || **buf == '-')
+    {
+        char op = **buf;
+        (*buf)++;
+        TreeNode* node2 = get_T(buf);
+
+        node = (TreeNode*)calloc(1, sizeof(TreeNode));
+        if(node == nullptr)
+            return nullptr;
+
+        node->elem = (NodeData*)calloc(1, sizeof(NodeData));
+
+        if(((NodeData*)(node->elem)) == nullptr)
+            return nullptr;
+
+        ((NodeData*)(node->elem))->type = OPERATOR;
+
+        switch(op)
+        {
+            case '+':
+                ((NodeData*)(node->elem))->elem.op = OP_ADD;
+                break;
+            case '-':
+                ((NodeData*)(node->elem))->elem.op = OP_SUB;
+                break;
+            default:
+                syn_assert(false, "get_E", buf);
+                break;
+        }
+
+        tree_link_node(node, node1);
+        tree_link_node(node, node2);
+
+        node1 = node;
+    }
+
+    if(node != nullptr)
+        return node;
+    return node1;
+}
+
+TreeNode* get_T(char** buf)
+{
+    TreeNode* node1 = get_P(buf);
+    TreeNode* node = nullptr;
+
+    while(**buf == '*' || **buf == '/')
+    {
+        char op = **buf;
+        (*buf)++;
+        TreeNode* node2 = get_P(buf);
+
+        node = (TreeNode*)calloc(1, sizeof(TreeNode));
+        if(node == nullptr)
+            return nullptr;
+
+        node->elem = (NodeData*)calloc(1, sizeof(NodeData));
+
+        if(((NodeData*)(node->elem)) == nullptr)
+            return nullptr;
+
+        ((NodeData*)(node->elem))->type = OPERATOR;
+
+        switch(op)
+        {
+            case '*':
+                ((NodeData*)(node->elem))->elem.op = OP_MUL;
+                break;
+            case '/':
+                ((NodeData*)(node->elem))->elem.op = OP_DIV;
+                break;
+            default:
+                syn_assert(false, "get_T", buf);
+                break;
+        }
+
+        tree_link_node(node, node1);
+        tree_link_node(node, node2);
+
+        node1 = node;
+    }
+
+    if(node != nullptr)
+        return node;
+    return node1;
+}
+
+TreeNode* get_P(char** buf)
+{
+    TreeNode* node = nullptr;
+
+    if(**buf == '(')
+    {
+        (*buf)++;
+        node = get_E(buf);
+        syn_assert(**buf == ')', "get_P", buf);
+        (*buf)++;
+        return node;
+    }
+
+    node = get_ID(buf);
+    if(node == nullptr)
+        node = get_N(buf);
+
+    return node;
+}
+
+TreeNode* get_ID(char** buf)
+{
+    const int MAX_SIZE_ID = 20;
+    char id[MAX_SIZE_ID] = {};
+    int p = 0;
+    char* oldBuf = *buf;
+    if('a' <= **buf && **buf <= 'z' || 'A' <= **buf && **buf <= 'Z')
+    {
+        id[p] = **buf;
+        (*buf)++;
+    }
+    else
+        return nullptr;
+
+    while('a' <= **buf && **buf <= 'z' || 'A' <= **buf && **buf <= 'Z' || **buf == '_'
+                || **buf == '_' || **buf == '$' || '0' <= **buf && **buf <= '9')
+    {
+        id[p] = **buf;
+        *buf++;
+    }
+
+    TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
+    if(node == nullptr)
+        return nullptr;
+
+    node->elem = (NodeData*)calloc(1, sizeof(NodeData));
+
+    if(((NodeData*)(node->elem)) == nullptr)
+        return nullptr;
+    ((NodeData*)(node->elem))->type = VARIABLE;
+    ((NodeData*)(node->elem))->elem.variable = strdup(id);
+
+    return node;
+}
+
+TreeNode* get_N(char** buf)
+{
+    double val = 0;
+    char* oldBuf = *buf;
+    while('0' <= **buf && **buf <= '9')
+    {
+        val = val * 10 + (**buf - '0');
+        (*buf)++;
+    }
+    if(**buf == '.')
+    {
+        int order = 10;
+        while('0' <= **buf && **buf <= '9')
+        {
+            val = val + (**buf - '0') / order;
+            order *= 10;
+            (*buf)++;
+        }
+    }
+    //syn_assert(oldBuf < *buf, "get_N", buf);
+
+    TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
+    if(node == nullptr)
+        return nullptr;
+
+    node->elem = calloc(1, sizeof(NodeData));
+
+    if(((NodeData*)(node->elem)) == nullptr)
+        return nullptr;
+    ((NodeData*)(node->elem))->type = NUM;
+    ((NodeData*)(node->elem))->elem.value = val;
+
+    return node;
 }
