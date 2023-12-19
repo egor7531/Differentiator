@@ -15,9 +15,6 @@ void* elem_ctor(void* elem);
 void  elem_dtor(void* elem);
 void  write_elem(FILE* fp, void* elem);
 
-Operators define_operator(char* command);
-NodeData* get_object(char** buf);
-double calculate_expression(TreeNode* node);
 //void optimize_derivative(TreeNode** node);
 void calculate_derivative(TreeNode** derivative, TreeNode* expression);
 void print_derivative(const char* nameFile, const Tree* tree);
@@ -43,11 +40,13 @@ void* elem_ctor(void* elem)
         data->type = NUM;
         data->elem.value = ((NodeData*)elem)->elem.value;
     }
-    else
+    else if(((NodeData*)elem)->type == VARIABLE)
     {
         data->type = VARIABLE;
         data->elem.variable = strdup(((NodeData*)elem)->elem.variable);
     }
+    else
+        assert("Unknown type");
 
     return data;
 }
@@ -98,90 +97,6 @@ void write_elem(FILE* fp, void* elem)
     }
 }
 
-Operators define_operator(char* command)
-{
-    assert(command != nullptr);
-
-    if(!strcmp(command, "add"))
-        return OP_ADD;
-    if(!strcmp(command, "sub"))
-        return OP_SUB;
-    if(!strcmp(command, "div"))
-        return OP_DIV;
-    if(!strcmp(command, "mul"))
-        return OP_MUL;
-    if(!strcmp(command, "pow"))
-        return OP_POW;
-
-    return NO_OP;
-}
-
-NodeData* get_object(char** buf)
-{
-    assert(buf != nullptr);
-
-    NodeData* data = (NodeData*)calloc(1, sizeof(NodeData));
-    if(data == nullptr)
-        return nullptr;
-
-    char* object = (char*)calloc(MAX_SIZE_OBJECT, sizeof(char));
-    if(object == nullptr)
-        return nullptr;
-
-    sscanf(*buf, "%s", object);
-
-    if(isdigit(object[0]))
-    {
-        data->elem.value = atof(object);
-        data->type = NUM;
-    }
-    else if(!strcmp(object, "x"))
-    {
-        data->elem.variable = strdup(object);
-        data->type = VARIABLE;
-    }
-    else
-    {
-        data->elem.op = define_operator(object);
-        data->type = OPERATOR;
-    }
-
-    *buf += strlen(object) + 1;
-    free(object);
-
-    return data;
-}
-
-double calculate_expression(TreeNode* node)
-{
-    if(node == nullptr)
-        return NAN;
-
-    if(((NodeData*)(node->elem))->type == NUM)
-        return ((NodeData*)(node->elem))->elem.value;
-
-    double valueLeft  = calculate_expression(node->leftNode);
-    double valueRight = calculate_expression(node->rightNode);
-
-    switch(((NodeData*)(node->elem))->elem.op)
-    {
-        case OP_ADD:
-            return valueLeft + valueRight;
-        case OP_SUB:
-            return valueLeft - valueRight;
-        case OP_DIV:
-            return valueLeft / valueRight;
-        case OP_MUL:
-            return valueLeft * valueRight;
-        case OP_POW:
-            return pow(valueLeft, valueRight);
-        default:
-            assert("Unknown operator");
-    }
-
-    return NAN;
-}
-
 /*void optimize_derivative(TreeNode** node)
 {
     if(*node == nullptr)
@@ -227,183 +142,109 @@ double calculate_expression(TreeNode* node)
         }
 }*/
 
-void derivative_variable(TreeNode** derivative)
+void derivative_variable(TreeNode** derivativeNode)
 {
-    *derivative = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(*derivative == nullptr)
-        return;
-
-    (*derivative)->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-    if(((NodeData*)((*derivative)->elem)) == nullptr)
-        return;
-
-    ((NodeData*)((*derivative)->elem))->type = NUM ;
-    ((NodeData*)((*derivative)->elem))->elem.value = 1;
+    Data elem;
+    elem.value = 1;
+    *derivativeNode = create_node(NUM, elem);
 }
 
-void derivative_num(TreeNode** derivative)
+void derivative_num(TreeNode** derivativeNode)
 {
-    *derivative = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(*derivative == nullptr)
-        return;
-
-    (*derivative)->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-    if(((NodeData*)((*derivative)->elem)) == nullptr)
-        return;
-
-    ((NodeData*)((*derivative)->elem))->type = NUM;
-    ((NodeData*)((*derivative)->elem))->elem.value = 0;
+    Data elem;
+    elem.value = 0;
+    *derivativeNode = create_node(NUM, elem);
 }
 
-void derivative_sum(TreeNode** derivative, TreeNode* expression)
+void derivative_sum(TreeNode** derivativeNode, TreeNode* expressionNode)
 {
-    assert(expression != nullptr);
+    assert(expressionNode != nullptr);
 
-    *derivative = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(*derivative == nullptr)
-        return;
+    *derivativeNode = create_node(OPERATOR, ((NodeData*)(expressionNode->elem))->elem);
 
-    (*derivative)->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-    if(((NodeData*)((*derivative)->elem)) == nullptr)
-        return;
-
-    ((NodeData*)((*derivative)->elem))->type = OPERATOR;
-    ((NodeData*)((*derivative)->elem))->elem.op = ((NodeData*)(expression->elem))->elem.op;
-
-    calculate_derivative(&(*derivative)->leftNode, expression->leftNode);
-    calculate_derivative(&(*derivative)->rightNode, expression->rightNode);
+    calculate_derivative(&(*derivativeNode)->leftNode, expressionNode->leftNode);
+    calculate_derivative(&(*derivativeNode)->rightNode, expressionNode->rightNode);
 }
 
-void derivative_pow(TreeNode** derivative, TreeNode* expression)
+void derivative_pow(TreeNode** derivativeNode, TreeNode* expressionNode)
 {
-    assert(expression != nullptr);
+    assert(expressionNode != nullptr);
+    Data elem;
 
-    *derivative = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(*derivative == nullptr)
-        return;
+    elem.op = OP_MUL;
+    *derivativeNode = create_node(OPERATOR, elem);
 
-    (*derivative)->elem = (NodeData*)calloc(1, sizeof(NodeData));
+    elem.op = OP_POW;
+    TreeNode* node1 = create_node(OPERATOR, elem);
 
-    if(((NodeData*)((*derivative)->elem)) == nullptr)
-        return;
+    elem.op = OP_ADD;
+    TreeNode* node2= create_node(OPERATOR, elem);
 
-    ((NodeData*)((*derivative)->elem))->type = OPERATOR;
-    ((NodeData*)((*derivative)->elem))->elem.op = OP_MUL;
+    tree_link_node(*derivativeNode, node1);
+    tree_link_node(*derivativeNode, node2);
 
-    TreeNode *derivative2 = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(derivative2 == nullptr)
-        return;
+    TreeNode* node11 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                  ((NodeData*)(expressionNode->leftNode->elem))->elem);
 
-    derivative2->elem = (NodeData*)calloc(1, sizeof(NodeData));
+    TreeNode* node12 = create_node(((NodeData*)(expressionNode->rightNode->elem))->type,
+                                  ((NodeData*)(expressionNode->rightNode->elem))->elem);
 
-    if(((NodeData*)(derivative2->elem)) == nullptr)
-        return;
+    tree_link_node(node1, node11);
+    tree_link_node(node1, node12);
 
-    ((NodeData*)(derivative2->elem))->type = OPERATOR;
-    ((NodeData*)(derivative2->elem))->elem.op = OP_ADD;
+    elem.op = OP_MUL;
+    TreeNode* node21 = create_node(OPERATOR, elem);
 
-    TreeNode *derivative21 = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(derivative21 == nullptr)
-        return;
+    elem.op = OP_MUL;
+    TreeNode* node22 = create_node(OPERATOR, elem);
 
-    derivative21->elem = (NodeData*)calloc(1, sizeof(NodeData));
+    tree_link_node(node2, node21);
+    tree_link_node(node2, node22);
 
-    if(((NodeData*)(derivative21->elem)) == nullptr)
-        return;
+    elem.op = OP_DIV;
+    TreeNode* node211 = create_node(OPERATOR, elem);
 
-    ((NodeData*)(derivative21->elem))->type = OPERATOR;
-    ((NodeData*)(derivative21->elem))->elem.op = OP_MUL;
+    elem.op = OP_ln;
+    TreeNode* node221 = create_node(OPERATOR, elem);
 
-    TreeNode *derivative22 = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(derivative22 == nullptr)
-        return;
+    tree_link_node(node21, node211);
+    tree_link_node(node22, node221);
 
-    derivative22->elem = (NodeData*)calloc(1, sizeof(NodeData));
+    TreeNode* node2111 = create_node(((NodeData*)(expressionNode->rightNode->elem))->type,
+                                    ((NodeData*)(expressionNode->rightNode->elem))->elem);
 
-    if(((NodeData*)(derivative22->elem)) == nullptr)
-        return;
+    TreeNode* node2112 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                    ((NodeData*)(expressionNode->leftNode->elem))->elem);
 
-    ((NodeData*)(derivative22->elem))->type = OPERATOR;
-    ((NodeData*)(derivative22->elem))->elem.op = OP_MUL;
+    TreeNode* node2211 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                    ((NodeData*)(expressionNode->leftNode->elem))->elem);
 
-    tree_link_node(*derivative, expression);
-    tree_link_node(*derivative, derivative2);
-    tree_link_node(derivative2, derivative21);
-    tree_link_node(derivative2, derivative22);
+    tree_link_node(node211, node2111);
+    tree_link_node(node211, node2112);
+    tree_link_node(node221, node2211);
 
-    TreeNode *derivative211 = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(derivative211 == nullptr)
-        return;
-
-    derivative211->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-    if(((NodeData*)(derivative211->elem)) == nullptr)
-        return;
-
-    ((NodeData*)(derivative211->elem))->type = OPERATOR;
-    ((NodeData*)(derivative211->elem))->elem.op = OP_DIV;
-
-    TreeNode *derivative222 = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(derivative222 == nullptr)
-        return;
-
-    derivative222->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-    if(((NodeData*)(derivative222->elem)) == nullptr)
-        return;
-
-    ((NodeData*)(derivative222->elem))->type = OPERATOR;
-    ((NodeData*)(derivative222->elem))->elem.op = OP_ln;
-
-    TreeNode* derivative2111 = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(derivative2111 == nullptr)
-        return;
-
-    derivative2111->elem = expression->rightNode->elem;
-
-    TreeNode* derivative2112 = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(derivative2112 == nullptr)
-        return;
-
-    derivative2112->elem = expression->leftNode->elem;
-
-    TreeNode* derivative2221 = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(derivative2221 == nullptr)
-        return;
-
-    derivative2221->elem = expression->leftNode->elem;
-
-    tree_link_node(derivative21, derivative211);
-    tree_link_node(derivative211, derivative2111);
-    tree_link_node(derivative211, derivative2112);
-    tree_link_node(derivative22, derivative222);
-    tree_link_node(derivative222, derivative2221);
-
-    calculate_derivative(&derivative21->rightNode, expression->leftNode);
-    calculate_derivative(&derivative22->rightNode, expression->rightNode);
+    calculate_derivative(&node21->rightNode, expressionNode->leftNode);
+    calculate_derivative(&node22->rightNode, expressionNode->rightNode);
 }
 
-void calculate_derivative(TreeNode** derivative, TreeNode* expression)
+void calculate_derivative(TreeNode** derivativeNode, TreeNode* expressionNode)
 {
-    if(((NodeData*)(expression->elem))->type == NUM)
-        derivative_num(derivative);
-    else if(((NodeData*)(expression->elem))->type == VARIABLE)
-        derivative_variable(derivative);
+    if(((NodeData*)(expressionNode->elem))->type == NUM)
+        derivative_num(derivativeNode);
+    else if(((NodeData*)(expressionNode->elem))->type == VARIABLE)
+        derivative_variable(derivativeNode);
      else
     {
-        switch(((NodeData*)(expression->elem))->elem.op)
+        switch(((NodeData*)(expressionNode->elem))->elem.op)
         {
             case OP_ADD:
-                derivative_sum(derivative, expression);
+                derivative_sum(derivativeNode, expressionNode);
                 break;
             case OP_SUB:
-                derivative_sum(derivative, expression);
+                derivative_sum(derivativeNode, expressionNode);
                 break;
             case OP_POW:
-                derivative_pow(derivative, expression);
+                derivative_pow(derivativeNode, expressionNode);
                 break;
             default:
                 assert("Unknown operator");

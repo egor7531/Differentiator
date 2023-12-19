@@ -1,9 +1,9 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "Parsing.h"
-#include "Differentiator.h"
 
 TreeNode* get_E(char** buf);
 TreeNode* get_T(char** buf);
@@ -12,6 +12,29 @@ TreeNode* get_P(char** buf);
 TreeNode* get_ID(char** buf);
 TreeNode* get_N(char** buf);
 void syntax_assert(bool flag, const char* nameFunc, char** buf);
+
+TreeNode* create_node(TypeElem type, Data elem)
+{
+    TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
+    if(node == nullptr)
+        return nullptr;
+
+    node->elem = (NodeData*)calloc(1, sizeof(NodeData));
+    if(((NodeData*)(node->elem)) == nullptr)
+        return nullptr;
+
+    ((NodeData*)(node->elem))->type = type;
+    if(type == NUM)
+        ((NodeData*)(node->elem))->elem.value = elem.value;
+    else if(type == VARIABLE)
+        ((NodeData*)(node->elem))->elem.variable = strdup(elem.variable);
+    else if(type == OPERATOR)
+        ((NodeData*)(node->elem))->elem.op = elem.op;
+    else
+        assert("Unknown type");
+
+    return node;
+}
 
 void syntax_assert(bool flag, const char* nameFunc, char** buf)
 {
@@ -24,6 +47,9 @@ void syntax_assert(bool flag, const char* nameFunc, char** buf)
 
 void get_G(Tree* tree, char** buf)
 {
+    assert(tree != nullptr);
+    assert(buf != nullptr);
+
     tree->root = get_E(buf);
     syntax_assert(**buf == '\0' || **buf == '\r' || **buf == '\n', "get_G", buf);
 }
@@ -31,7 +57,6 @@ void get_G(Tree* tree, char** buf)
 TreeNode* get_E(char** buf)
 {
     TreeNode* node1 = get_T(buf);
-    TreeNode* node = nullptr;
 
     while(**buf == '+' || **buf == '-')
     {
@@ -39,225 +64,68 @@ TreeNode* get_E(char** buf)
         (*buf)++;
         TreeNode* node2 = get_T(buf);
 
-        node = (TreeNode*)calloc(1, sizeof(TreeNode));
-        if(node == nullptr)
-            return nullptr;
-
-        node->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-        if(((NodeData*)(node->elem)) == nullptr)
-            return nullptr;
-
-        ((NodeData*)(node->elem))->type = OPERATOR;
-
+        Data elem;
         switch(op)
         {
             case '+':
-                ((NodeData*)(node->elem))->elem.op = OP_ADD;
+                elem.op = OP_ADD;
                 break;
             case '-':
-                ((NodeData*)(node->elem))->elem.op = OP_SUB;
+                elem.op = OP_SUB;
                 break;
             default:
                 syntax_assert(false, "get_E", buf);
                 break;
         }
 
-        if(((NodeData*)(node1->elem))->type == VARIABLE)
-        {
-            TreeNode* nodePOW = (TreeNode*)calloc(1, sizeof(TreeNode));
-            if(nodePOW == nullptr)
-                return nullptr;
+        TreeNode* node = create_node(OPERATOR, elem);
 
-            nodePOW->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-            if(((NodeData*)(nodePOW->elem)) == nullptr)
-                return nullptr;
-
-            ((NodeData*)(nodePOW->elem))->type = OPERATOR;
-            ((NodeData*)(nodePOW->elem))->elem.op = OP_POW;
-
-            TreeNode* nodeExp = (TreeNode*)calloc(1, sizeof(TreeNode));
-            if(nodePOW == nullptr)
-                return nullptr;
-
-            nodeExp->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-            if(((NodeData*)(nodeExp->elem)) == nullptr)
-                return nullptr;
-
-            ((NodeData*)(nodeExp->elem))->type = NUM;
-            ((NodeData*)(nodeExp->elem))->elem.value = 1;
-
-            tree_link_node(node, nodePOW);
-            tree_link_node(node, node2);
-            tree_link_node(nodePOW, node1);
-            tree_link_node(nodePOW, nodeExp);
-        }
-        else if(((NodeData*)(node2->elem))->type == VARIABLE)
-        {
-            TreeNode* nodePOW = (TreeNode*)calloc(1, sizeof(TreeNode));
-            if(nodePOW == nullptr)
-                return nullptr;
-
-            nodePOW->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-            if(((NodeData*)(nodePOW->elem)) == nullptr)
-                return nullptr;
-
-            ((NodeData*)(nodePOW->elem))->type = OPERATOR;
-            ((NodeData*)(nodePOW->elem))->elem.op = OP_POW;
-
-            TreeNode* nodeExp = (TreeNode*)calloc(1, sizeof(TreeNode));
-            if(nodePOW == nullptr)
-                return nullptr;
-
-            nodeExp->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-            if(((NodeData*)(nodeExp->elem)) == nullptr)
-                return nullptr;
-
-            ((NodeData*)(nodeExp->elem))->type = NUM;
-            ((NodeData*)(nodeExp->elem))->elem.value = 1;
-
-            tree_link_node(node, node1);
-            tree_link_node(node, nodePOW);
-            tree_link_node(nodePOW, node2);
-            tree_link_node(nodePOW, nodeExp);
-        }
-        else
-        {
-            tree_link_node(node, node1);
-            tree_link_node(node, node2);
-        }
-
-        /*tree_link_node(node, node1);
-        tree_link_node(node, node2);*/
+        tree_link_node(node, node1);
+        tree_link_node(node, node2);
         node1 = node;
     }
 
-    if(node != nullptr)
-        return node;
     return node1;
 }
 
 TreeNode* get_T(char** buf)
 {
     TreeNode* node1 = get_POW(buf);
-    TreeNode* node = nullptr;
 
     while(**buf == '*' || **buf == '/')
     {
         char op = **buf;
         (*buf)++;
+
         TreeNode* node2 = get_POW(buf);
 
-        node = (TreeNode*)calloc(1, sizeof(TreeNode));
-        if(node == nullptr)
-            return nullptr;
-
-        node->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-        if(((NodeData*)(node->elem)) == nullptr)
-            return nullptr;
-
-        ((NodeData*)(node->elem))->type = OPERATOR;
-
+        Data elem;
         switch(op)
         {
             case '*':
-                ((NodeData*)(node->elem))->elem.op = OP_MUL;
+                elem.op = OP_MUL;
                 break;
             case '/':
-                ((NodeData*)(node->elem))->elem.op = OP_DIV;
+                elem.op = OP_DIV;
                 break;
             default:
                 syntax_assert(false, "get_T", buf);
                 break;
         }
 
-        if(((NodeData*)(node1->elem))->type == VARIABLE)
-        {
-            TreeNode* nodePOW = (TreeNode*)calloc(1, sizeof(TreeNode));
-            if(nodePOW == nullptr)
-                return nullptr;
+        TreeNode* node = create_node(OPERATOR, elem);
 
-            nodePOW->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-            if(((NodeData*)(nodePOW->elem)) == nullptr)
-                return nullptr;
-
-            ((NodeData*)(nodePOW->elem))->type = OPERATOR;
-            ((NodeData*)(nodePOW->elem))->elem.op = OP_POW;
-
-            TreeNode* nodeExp = (TreeNode*)calloc(1, sizeof(TreeNode));
-            if(nodePOW == nullptr)
-                return nullptr;
-
-            nodeExp->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-            if(((NodeData*)(nodeExp->elem)) == nullptr)
-                return nullptr;
-
-            ((NodeData*)(nodeExp->elem))->type = NUM;
-            ((NodeData*)(nodeExp->elem))->elem.value = 1;
-
-            tree_link_node(node, nodePOW);
-            tree_link_node(node, node2);
-            tree_link_node(nodePOW, node1);
-            tree_link_node(nodePOW, nodeExp);
-        }
-        else if(((NodeData*)(node2->elem))->type == VARIABLE)
-        {
-            TreeNode* nodePOW = (TreeNode*)calloc(1, sizeof(TreeNode));
-            if(nodePOW == nullptr)
-                return nullptr;
-
-            nodePOW->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-            if(((NodeData*)(nodePOW->elem)) == nullptr)
-                return nullptr;
-
-            ((NodeData*)(nodePOW->elem))->type = OPERATOR;
-            ((NodeData*)(nodePOW->elem))->elem.op = OP_POW;
-
-            TreeNode* nodeExp = (TreeNode*)calloc(1, sizeof(TreeNode));
-            if(nodePOW == nullptr)
-                return nullptr;
-
-            nodeExp->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-            if(((NodeData*)(nodeExp->elem)) == nullptr)
-                return nullptr;
-
-            ((NodeData*)(nodeExp->elem))->type = NUM;
-            ((NodeData*)(nodeExp->elem))->elem.value = 1;
-
-            tree_link_node(node, node1);
-            tree_link_node(node, nodePOW);
-            tree_link_node(nodePOW, node2);
-            tree_link_node(nodePOW, nodeExp);
-        }
-        else
-        {
-            tree_link_node(node, node1);
-            tree_link_node(node, node2);
-        }
-
-        /*tree_link_node(node, node1);
-        tree_link_node(node, node2);*/
+        tree_link_node(node, node1);
+        tree_link_node(node, node2);
         node1 = node;
     }
 
-    if(node != nullptr)
-        return node;
     return node1;
 }
 
 TreeNode* get_POW(char** buf)
 {
     TreeNode* node1 = get_P(buf);
-    TreeNode* node = nullptr;
 
     while(**buf == '^')
     {
@@ -265,26 +133,15 @@ TreeNode* get_POW(char** buf)
         (*buf)++;
         TreeNode* node2 = get_P(buf);
 
-        node = (TreeNode*)calloc(1, sizeof(TreeNode));
-        if(node == nullptr)
-            return nullptr;
-
-        node->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-        if(((NodeData*)(node->elem)) == nullptr)
-            return nullptr;
-
-        ((NodeData*)(node->elem))->type = OPERATOR;
-        ((NodeData*)(node->elem))->elem.op = OP_POW;
+        Data elem;
+        elem.op = OP_POW;
+        TreeNode* node = create_node(OPERATOR, elem);
 
         tree_link_node(node, node1);
         tree_link_node(node, node2);
-
         node1 = node;
     }
 
-    if(node != nullptr)
-        return node;
     return node1;
 }
 
@@ -328,16 +185,9 @@ TreeNode* get_ID(char** buf)
         *buf++;
     }
 
-    TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(node == nullptr)
-        return nullptr;
-
-    node->elem = (NodeData*)calloc(1, sizeof(NodeData));
-
-    if(((NodeData*)(node->elem)) == nullptr)
-        return nullptr;
-    ((NodeData*)(node->elem))->type = VARIABLE;
-    ((NodeData*)(node->elem))->elem.variable = strdup(id);
+    Data elem;
+    elem.variable = id;
+    TreeNode* node = create_node(VARIABLE, elem);
 
     return node;
 }
@@ -353,7 +203,8 @@ TreeNode* get_N(char** buf)
     }
     if(**buf == '.')
     {
-        int order = 10;
+        (*buf)++;
+        double order = 10;
         while('0' <= **buf && **buf <= '9')
         {
             val = val + (**buf - '0') / order;
@@ -363,16 +214,9 @@ TreeNode* get_N(char** buf)
     }
     syntax_assert(oldBuf < *buf, "get_N", buf);
 
-    TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(node == nullptr)
-        return nullptr;
-
-    node->elem = calloc(1, sizeof(NodeData));
-
-    if(((NodeData*)(node->elem)) == nullptr)
-        return nullptr;
-    ((NodeData*)(node->elem))->type = NUM;
-    ((NodeData*)(node->elem))->elem.value = val;
+    Data elem;
+    elem.value = val;
+    TreeNode* node = create_node(NUM, elem);
 
     return node;
 }

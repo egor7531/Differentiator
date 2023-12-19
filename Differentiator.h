@@ -1,6 +1,8 @@
 #ifndef DIFFERENTIATOR_H_INCLUDED
 #define DIFFERENTIATOR_H_INCLUDED
 
+#include "Tree.h"
+
 enum Operators
 {
     NO_OP,
@@ -34,5 +36,6 @@ struct NodeData
 
 void get_derivative(const char* nameFile);
 void get_taylor_series(const char* nameFile);
+TreeNode* create_node(TypeElem type, Data elem);
 
 #endif //DIFFERENTIATOR_H_INCLUDED
