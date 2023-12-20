@@ -5,6 +5,6 @@
 #include "Differentiator.h"
 
 void get_G(Tree* tree, char** buf);
-TreeNode* create_node(TypeElem type, Data elem);
+TreeNode* create_node(TypeElem type, Data elem, TreeNode* leftNode, TreeNode* rightNode);
 
 #endif //PARSING_H_INCLUDED

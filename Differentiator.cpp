@@ -16,7 +16,7 @@ void  elem_dtor(void* elem);
 void  write_elem(FILE* fp, void* elem);
 
 //void optimize_derivative(TreeNode** node);
-void calculate_derivative(TreeNode** derivative, TreeNode* expression);
+TreeNode* calculate_derivative(TreeNode* expressionNode);
 void print_derivative(const char* nameFile, const Tree* tree);
 void print_nodes(FILE* fp, const TreeNode* node);
 
@@ -142,115 +142,181 @@ void write_elem(FILE* fp, void* elem)
         }
 }*/
 
-void derivative_variable(TreeNode** derivativeNode)
+TreeNode* derivative_variable()
 {
     Data elem;
     elem.value = 1;
-    *derivativeNode = create_node(NUM, elem);
+    return create_node(NUM, elem, nullptr, nullptr);
 }
 
-void derivative_num(TreeNode** derivativeNode)
+TreeNode* derivative_num()
 {
     Data elem;
     elem.value = 0;
-    *derivativeNode = create_node(NUM, elem);
+    return create_node(NUM, elem, nullptr, nullptr);
 }
 
-void derivative_sum(TreeNode** derivativeNode, TreeNode* expressionNode)
+TreeNode* derivative_sum(TreeNode* expressionNode)
 {
     assert(expressionNode != nullptr);
 
-    *derivativeNode = create_node(OPERATOR, ((NodeData*)(expressionNode->elem))->elem);
-
-    calculate_derivative(&(*derivativeNode)->leftNode, expressionNode->leftNode);
-    calculate_derivative(&(*derivativeNode)->rightNode, expressionNode->rightNode);
+    return create_node(OPERATOR, ((NodeData*)(expressionNode->elem))->elem,
+                                calculate_derivative(expressionNode->leftNode),
+                                calculate_derivative(expressionNode->rightNode));
 }
 
-void derivative_pow(TreeNode** derivativeNode, TreeNode* expressionNode)
+TreeNode* derivative_mul(TreeNode* expressionNode)
 {
     assert(expressionNode != nullptr);
     Data elem;
 
-    elem.op = OP_MUL;
-    *derivativeNode = create_node(OPERATOR, elem);
+    TreeNode* node11 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                  ((NodeData*)(expressionNode->leftNode->elem))->elem,
+                                  expressionNode->leftNode->leftNode,
+                                  expressionNode->leftNode->rightNode);
 
-    elem.op = OP_POW;
-    TreeNode* node1 = create_node(OPERATOR, elem);
+    TreeNode* node21 = create_node(((NodeData*)(expressionNode->rightNode->elem))->type,
+                                  ((NodeData*)(expressionNode->rightNode->elem))->elem,
+                                  expressionNode->rightNode->leftNode,
+                                  expressionNode->rightNode->rightNode);
+
+    elem.op = OP_MUL;
+    TreeNode* node1 = create_node(OPERATOR, elem, node11,
+                                calculate_derivative(expressionNode->rightNode));
+
+    elem.op = OP_MUL;
+    TreeNode* node2 = create_node(OPERATOR, elem, node21,
+                                calculate_derivative(expressionNode->leftNode));
 
     elem.op = OP_ADD;
-    TreeNode* node2= create_node(OPERATOR, elem);
-
-    tree_link_node(*derivativeNode, node1);
-    tree_link_node(*derivativeNode, node2);
-
-    TreeNode* node11 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
-                                  ((NodeData*)(expressionNode->leftNode->elem))->elem);
-
-    TreeNode* node12 = create_node(((NodeData*)(expressionNode->rightNode->elem))->type,
-                                  ((NodeData*)(expressionNode->rightNode->elem))->elem);
-
-    tree_link_node(node1, node11);
-    tree_link_node(node1, node12);
-
-    elem.op = OP_MUL;
-    TreeNode* node21 = create_node(OPERATOR, elem);
-
-    elem.op = OP_MUL;
-    TreeNode* node22 = create_node(OPERATOR, elem);
-
-    tree_link_node(node2, node21);
-    tree_link_node(node2, node22);
-
-    elem.op = OP_DIV;
-    TreeNode* node211 = create_node(OPERATOR, elem);
-
-    elem.op = OP_ln;
-    TreeNode* node221 = create_node(OPERATOR, elem);
-
-    tree_link_node(node21, node211);
-    tree_link_node(node22, node221);
-
-    TreeNode* node2111 = create_node(((NodeData*)(expressionNode->rightNode->elem))->type,
-                                    ((NodeData*)(expressionNode->rightNode->elem))->elem);
-
-    TreeNode* node2112 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
-                                    ((NodeData*)(expressionNode->leftNode->elem))->elem);
-
-    TreeNode* node2211 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
-                                    ((NodeData*)(expressionNode->leftNode->elem))->elem);
-
-    tree_link_node(node211, node2111);
-    tree_link_node(node211, node2112);
-    tree_link_node(node221, node2211);
-
-    calculate_derivative(&node21->rightNode, expressionNode->leftNode);
-    calculate_derivative(&node22->rightNode, expressionNode->rightNode);
+    return create_node(OPERATOR, elem, node1, node2);
 }
 
-void calculate_derivative(TreeNode** derivativeNode, TreeNode* expressionNode)
+TreeNode* derivative_div(TreeNode* expressionNode)
 {
+    assert(expressionNode != nullptr);
+    Data elem;
+
+    TreeNode* node121 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                  ((NodeData*)(expressionNode->leftNode->elem))->elem,
+                                  expressionNode->leftNode->leftNode,
+                                  expressionNode->leftNode->rightNode);
+
+    TreeNode* node111 = create_node(((NodeData*)(expressionNode->rightNode->elem))->type,
+                                  ((NodeData*)(expressionNode->rightNode->elem))->elem,
+                                  expressionNode->rightNode->leftNode,
+                                  expressionNode->rightNode->rightNode);
+
+    TreeNode* node21 = create_node(((NodeData*)(expressionNode->rightNode->elem))->type,
+                                  ((NodeData*)(expressionNode->rightNode->elem))->elem,
+                                  expressionNode->rightNode->leftNode,
+                                  expressionNode->rightNode->rightNode);
+
+    elem.value = 2;
+    TreeNode* node22 = create_node(NUM, elem, nullptr, nullptr);
+
+    elem.op = OP_POW;
+    TreeNode* node2 = create_node(OPERATOR, elem, node21, node22);
+
+    elem.op = OP_MUL;
+    TreeNode* node11 = create_node(OPERATOR, elem, node111,
+                                    calculate_derivative(expressionNode->leftNode));
+
+    elem.op = OP_MUL;
+    TreeNode* node12 = create_node(OPERATOR, elem, node121,
+                                    calculate_derivative(expressionNode->rightNode));
+
+    elem.op = OP_SUB;
+    TreeNode* node1 = create_node(OPERATOR, elem, node11, node12);
+
+    elem.op = OP_DIV;
+    return create_node(OPERATOR, elem, node1, node2);
+}
+
+TreeNode* derivative_pow(TreeNode* expressionNode)
+{
+    assert(expressionNode != nullptr);
+    Data elem;
+
+    TreeNode* node11 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                  ((NodeData*)(expressionNode->leftNode->elem))->elem,
+                                  expressionNode->leftNode->leftNode,
+                                  expressionNode->leftNode->rightNode);
+
+    TreeNode* node12 = create_node(((NodeData*)(expressionNode->rightNode->elem))->type,
+                                  ((NodeData*)(expressionNode->rightNode->elem))->elem,
+                                  expressionNode->rightNode->leftNode,
+                                  expressionNode->rightNode->rightNode);
+
+    TreeNode* node2111 = create_node(((NodeData*)(expressionNode->rightNode->elem))->type,
+                                    ((NodeData*)(expressionNode->rightNode->elem))->elem,
+                                    expressionNode->rightNode->leftNode,
+                                    expressionNode->rightNode->rightNode);
+
+    TreeNode* node2112 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                    ((NodeData*)(expressionNode->leftNode->elem))->elem,
+                                    expressionNode->leftNode->leftNode,
+                                    expressionNode->leftNode->rightNode);
+
+    TreeNode* node2211 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                    ((NodeData*)(expressionNode->leftNode->elem))->elem,
+                                    expressionNode->leftNode->leftNode,
+                                    expressionNode->leftNode->rightNode);
+
+    elem.op = OP_POW;
+    TreeNode* node1 = create_node(OPERATOR, elem, node11, node12);
+
+    elem.op = OP_DIV;
+    TreeNode* node211 = create_node(OPERATOR, elem, node2111, node2112);
+
+    elem.op = OP_ln;
+    TreeNode* node221 = create_node(OPERATOR, elem, node2211, nullptr);
+
+    elem.op = OP_MUL;
+    TreeNode* node21 = create_node(OPERATOR, elem, node211,
+                                    calculate_derivative(expressionNode->leftNode));
+
+    elem.op = OP_MUL;
+    TreeNode* node22 = create_node(OPERATOR, elem, node221,
+                                    calculate_derivative(expressionNode->rightNode));
+
+    elem.op = OP_ADD;
+    TreeNode* node2 = create_node(OPERATOR, elem, node21, node22);
+
+    elem.op = OP_MUL;
+    return create_node(OPERATOR, elem, node1, node2);
+}
+
+TreeNode* calculate_derivative(TreeNode* expressionNode)
+{
+    assert(expressionNode != nullptr);
+
     if(((NodeData*)(expressionNode->elem))->type == NUM)
-        derivative_num(derivativeNode);
+        return derivative_num();
     else if(((NodeData*)(expressionNode->elem))->type == VARIABLE)
-        derivative_variable(derivativeNode);
-     else
+        return derivative_variable();
+    else if(((NodeData*)(expressionNode->elem))->type == OPERATOR)
     {
         switch(((NodeData*)(expressionNode->elem))->elem.op)
         {
             case OP_ADD:
-                derivative_sum(derivativeNode, expressionNode);
-                break;
+                return derivative_sum(expressionNode);
             case OP_SUB:
-                derivative_sum(derivativeNode, expressionNode);
-                break;
+                return derivative_sum(expressionNode);
+            case OP_MUL:
+                return derivative_mul(expressionNode);
+            case OP_DIV:
+                return derivative_div(expressionNode);
             case OP_POW:
-                derivative_pow(derivativeNode, expressionNode);
-                break;
+                return derivative_pow(expressionNode);
             default:
                 assert("Unknown operator");
-                break;
         }
     }
+    else
+        assert("Unknown type");
+
+    return nullptr;
 }
 
 void print_derivative(const char* nameFile, const Tree* tree)
@@ -291,7 +357,7 @@ void get_derivative(const char* nameFile)
     tree_graphic_dump(expression,  nameFileDotEx,  nameFilePngEx);
 
     Tree* derivative = tree_ctor(elem_ctor, elem_dtor, write_elem);
-    calculate_derivative(&derivative->root, expression->root);
+    derivative->root = calculate_derivative(expression->root);
     tree_graphic_dump(derivative,  nameFileDotDer,  nameFilePngDer);
     print_derivative(nameFileTxtDer, derivative);
 

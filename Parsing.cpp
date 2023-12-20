@@ -13,7 +13,7 @@ TreeNode* get_ID(char** buf);
 TreeNode* get_N(char** buf);
 void syntax_assert(bool flag, const char* nameFunc, char** buf);
 
-TreeNode* create_node(TypeElem type, Data elem)
+TreeNode* create_node(TypeElem type, Data elem, TreeNode* leftNode, TreeNode* rightNode)
 {
     TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
     if(node == nullptr)
@@ -33,6 +33,14 @@ TreeNode* create_node(TypeElem type, Data elem)
     else
         assert("Unknown type");
 
+    if(leftNode != nullptr)
+        node->leftNode = create_node(((NodeData*)(leftNode->elem))->type,
+                            ((NodeData*)(leftNode->elem))->elem, leftNode->leftNode,
+                            leftNode->rightNode);
+    if(rightNode != nullptr)
+        node->rightNode = create_node(((NodeData*)(rightNode->elem))->type,
+                            ((NodeData*)(rightNode->elem))->elem, rightNode->leftNode,
+                            rightNode->rightNode);
     return node;
 }
 
@@ -78,10 +86,8 @@ TreeNode* get_E(char** buf)
                 break;
         }
 
-        TreeNode* node = create_node(OPERATOR, elem);
+        TreeNode* node = create_node(OPERATOR, elem, node1, node2);
 
-        tree_link_node(node, node1);
-        tree_link_node(node, node2);
         node1 = node;
     }
 
@@ -113,10 +119,8 @@ TreeNode* get_T(char** buf)
                 break;
         }
 
-        TreeNode* node = create_node(OPERATOR, elem);
+        TreeNode* node = create_node(OPERATOR, elem, node1, node2);
 
-        tree_link_node(node, node1);
-        tree_link_node(node, node2);
         node1 = node;
     }
 
@@ -135,10 +139,7 @@ TreeNode* get_POW(char** buf)
 
         Data elem;
         elem.op = OP_POW;
-        TreeNode* node = create_node(OPERATOR, elem);
-
-        tree_link_node(node, node1);
-        tree_link_node(node, node2);
+        TreeNode* node = create_node(OPERATOR, elem, node1, node2);
         node1 = node;
     }
 
@@ -187,9 +188,7 @@ TreeNode* get_ID(char** buf)
 
     Data elem;
     elem.variable = id;
-    TreeNode* node = create_node(VARIABLE, elem);
-
-    return node;
+    return create_node(VARIABLE, elem, nullptr, nullptr);
 }
 
 TreeNode* get_N(char** buf)
@@ -216,7 +215,6 @@ TreeNode* get_N(char** buf)
 
     Data elem;
     elem.value = val;
-    TreeNode* node = create_node(NUM, elem);
 
-    return node;
+    return create_node(NUM, elem, nullptr, nullptr);
 }
