@@ -15,7 +15,7 @@ void* elem_ctor(void* elem);
 void  elem_dtor(void* elem);
 void  write_elem(FILE* fp, void* elem);
 
-//void optimize_derivative(TreeNode** node);
+void optimize_expression(Tree* expression, TreeNode** node);
 TreeNode* calculate_derivative(TreeNode* expressionNode);
 void print_derivative(const char* nameFile, const Tree* tree);
 void print_nodes(FILE* fp, const TreeNode* node);
@@ -55,8 +55,11 @@ void elem_dtor(void* elem)
 {
     assert(elem != nullptr);
 
-    free(((NodeData*)elem)->elem.variable);
-    free(elem);
+    if(((NodeData*)elem)->type == VARIABLE)
+    {
+        free(((NodeData*)elem)->elem.variable);
+        free(elem);
+    }
 }
 
 void write_elem(FILE* fp, void* elem)
@@ -97,50 +100,105 @@ void write_elem(FILE* fp, void* elem)
     }
 }
 
-/*void optimize_derivative(TreeNode** node)
+int compare_numbers(double x1, double x2)
 {
-    if(*node == nullptr)
+    const double DELTA = 0.00001;
+
+    if(abs(x1 - x2) < DELTA)
+        return 0;
+    return x1 - x2;
+}
+void optimize_expression(Tree* expression, TreeNode** node)
+{
+    assert(expression != nullptr);
+
+    if((*node)->leftNode == nullptr || (*node)->rightNode == nullptr)
         return;
 
-    if( ((NodeData*)((*node)->elem))->type == OPERATOR)
+    optimize_expression(expression, &((*node)->leftNode));
+    optimize_expression(expression, &((*node)->rightNode));
+
+    NodeData* elem = (NodeData*)((*node)->elem);
+    NodeData* elemLeft = (NodeData*)((*node)->leftNode->elem);
+    NodeData* elemRight = (NodeData*)((*node)->rightNode->elem);
+
+    if(elemLeft->type == NUM && elemRight->type == NUM)
     {
-        if( ((NodeData*)((*node)->leftNode->elem))->type == NUM &&
-            ((NodeData*)((*node)->rightNode->elem))->type == NUM)
+        elem->type = NUM;
+        switch(elem->elem.op)
         {
-            ((NodeData*)((*node)->elem))->type = NUM;
-
-            double valueLeft = ((NodeData*)((*node)->leftNode->elem))->elem.value;
-            double valueRight = ((NodeData*)((*node)->rightNode->elem))->elem.value;
-
-            switch(((NodeData*)((*node)->elem))->elem.op)
-            {
-                case OP_ADD:
-                    ((NodeData*)((*node)->elem))->elem.value = valueLeft + valueRight;
-                    break;
-                case OP_SUB:
-                    ((NodeData*)((*node)->elem))->elem.value = valueLeft - valueRight;
-                    break;
-                case OP_DIV:
-                    ((NodeData*)((*node)->elem))->elem.value = valueLeft / valueRight;
-                    break;
-                case OP_MUL:
-                    ((NodeData*)((*node)->elem))->elem.value = valueLeft * valueRight;
-                    break;
-                case OP_POW:
-                    ((NodeData*)((*node)->elem))->elem.value = pow(valueLeft, valueRight);
-                    break;
-                default:
-                    assert("Unknown operator");
-            }
-
-            elem_dtor(((*node)->leftNode->elem));
-            elem_dtor(((*node)->rightNode->elem));
-            free(((*node)->leftNode));
-            free(((*node)->rightNode));
-            (*node)->leftNode = nullptr;
-            (*node)->rightNode = nullptr;
+            case OP_ADD:
+                elem->elem.value = elemLeft->elem.value + elemRight->elem.value;
+                break;
+            case OP_SUB:
+                elem->elem.value = elemLeft->elem.value - elemRight->elem.value;
+                break;
+            case OP_MUL:
+                elem->elem.value = elemLeft->elem.value * elemRight->elem.value;
+                break;
+            case OP_DIV:
+                elem->elem.value = elemLeft->elem.value / elemRight->elem.value;
+                break;
+            case OP_POW:
+                elem->elem.value = pow(elemLeft->elem.value,elemRight->elem.value);
+                break;
+            default:
+                assert("Unknown operator");
+                break;
         }
-}*/
+
+        tree_nodes_delete(expression, &(*node)->leftNode);
+        tree_nodes_delete(expression, &(*node)->rightNode);
+    }
+    else if(elemRight->type == NUM && compare_numbers(elemRight->elem.value, 0) == 0)
+    {
+        switch(elem->elem.op)
+        {
+            case OP_MUL:
+                tree_nodes_delete(expression, &(*node)->leftNode);
+                tree_nodes_delete(expression, &(*node)->rightNode);
+                elem->type = NUM;
+                elem->elem.value = 0;
+                break;
+            case OP_POW:
+                tree_nodes_delete(expression, &(*node)->leftNode);
+                tree_nodes_delete(expression, &(*node)->rightNode);
+                elem->type = NUM;
+                elem->elem.value = 1;
+                break;
+            default:
+                assert("Unknown operator");
+                break;
+        }
+    }
+    else if(elemLeft->type == NUM && compare_numbers(elemLeft->elem.value, 0) == 0)
+    {
+        switch(elem->elem.op)
+        {
+            case OP_MUL:
+                tree_nodes_delete(expression, &(*node)->rightNode);
+                tree_nodes_delete(expression, &(*node)->leftNode);
+                elem->type = NUM;
+                elem->elem.value = 0;
+                break;
+            case OP_DIV:
+                tree_nodes_delete(expression, &(*node)->rightNode);
+                tree_nodes_delete(expression, &(*node)->leftNode);
+                elem->type = NUM;
+                elem->elem.value = 0;
+                break;
+            case OP_POW:
+                tree_nodes_delete(expression, &(*node)->rightNode);
+                tree_nodes_delete(expression, &(*node)->leftNode);
+                elem->type = NUM;
+                elem->elem.value = 0;
+                break;
+            default:
+                assert("Unknown operator");
+                break;
+        }
+    }
+}
 
 TreeNode* derivative_variable()
 {
@@ -354,10 +412,11 @@ void get_derivative(const char* nameFile)
     char* buf = get_file_content(nameFile);
     Tree* expression = tree_ctor(elem_ctor, elem_dtor, write_elem);
     get_G(expression, &buf);
+    optimize_expression(expression, &(expression->root));
     tree_graphic_dump(expression,  nameFileDotEx,  nameFilePngEx);
-
     Tree* derivative = tree_ctor(elem_ctor, elem_dtor, write_elem);
     derivative->root = calculate_derivative(expression->root);
+    optimize_expression(derivative, &derivative->root);
     tree_graphic_dump(derivative,  nameFileDotDer,  nameFilePngDer);
     print_derivative(nameFileTxtDer, derivative);
 

@@ -5,7 +5,6 @@
 
 enum Operators
 {
-    NO_OP,
     OP_ADD,
     OP_SUB,
     OP_MUL,
@@ -36,6 +35,5 @@ struct NodeData
 
 void get_derivative(const char* nameFile);
 void get_taylor_series(const char* nameFile);
-TreeNode* create_node(TypeElem type, Data elem);
 
 #endif //DIFFERENTIATOR_H_INCLUDED
