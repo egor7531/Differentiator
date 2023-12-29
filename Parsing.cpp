@@ -26,8 +26,8 @@ TreeNode* create_node(TypeElem type, Data elem, TreeNode* leftNode, TreeNode* ri
     ((NodeData*)(node->elem))->type = type;
     if(type == NUM)
         ((NodeData*)(node->elem))->elem.value = elem.value;
-    else if(type == VARIABLE)
-        ((NodeData*)(node->elem))->elem.variable = strdup(elem.variable);
+    else if(type == IDENTIFIER)
+        ((NodeData*)(node->elem))->elem.id = strdup(elem.id);
     else if(type == OPERATOR)
         ((NodeData*)(node->elem))->elem.op = elem.op;
     else
@@ -168,6 +168,7 @@ TreeNode* get_P(char** buf)
 
 TreeNode* get_ID(char** buf)
 {
+    TreeNode* node = nullptr;
     const int MAX_SIZE_ID = 20;
     char id[MAX_SIZE_ID] = {};
     int p = 0;
@@ -175,20 +176,40 @@ TreeNode* get_ID(char** buf)
     {
         id[p] = **buf;
         (*buf)++;
+        p++;
     }
     else
         return nullptr;
 
     while('a' <= **buf && **buf <= 'z' || 'A' <= **buf && **buf <= 'Z' || **buf == '_'
-                || **buf == '_' || **buf == '$' || '0' <= **buf && **buf <= '9')
+                        || **buf == '_' || **buf == '$' || '0' <= **buf && **buf <= '9')
     {
         id[p] = **buf;
-        *buf++;
+        (*buf)++;
+        p++;
     }
 
     Data elem;
-    elem.variable = id;
-    return create_node(VARIABLE, elem, nullptr, nullptr);
+
+    if(**buf == '(')
+    {
+        (*buf)++;
+        if(!strcmp(id, "sin"))
+            elem.op = OP_SIN;
+        else if(!strcmp(id, "cos"))
+            elem.op = OP_COS;
+        else if(!strcmp(id, "ln"))
+            elem.op = OP_LN;
+        else if(!strcmp(id, "sqrt"))
+            elem.op = OP_SQRT;
+        node = get_E(buf);
+        syntax_assert(**buf == ')', "get_ID", buf);
+        (*buf)++;
+        return create_node(OPERATOR, elem, node, nullptr);
+    }
+
+    elem.id = strdup(id);
+    return create_node(IDENTIFIER, elem, nullptr, nullptr);
 }
 
 TreeNode* get_N(char** buf)

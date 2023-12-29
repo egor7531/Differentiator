@@ -10,21 +10,24 @@ enum Operators
     OP_MUL,
     OP_DIV,
     OP_POW,
-    OP_ln
+    OP_LN,
+    OP_SIN,
+    OP_COS,
+    OP_SQRT
 };
 
 enum TypeElem
 {
     OPERATOR,
     NUM,
-    VARIABLE
+    IDENTIFIER
 };
 
 union Data
 {
     double      value;
     Operators   op;
-    char*       variable;
+    char*       id;
 };
 
 struct NodeData
