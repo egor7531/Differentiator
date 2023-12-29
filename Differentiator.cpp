@@ -108,19 +108,19 @@ int compare_numbers(double x1, double x2)
         return 0;
     return x1 - x2;
 }
-void optimize_expression(Tree* expression, TreeNode** node)
+void optimize_expression(Tree* expression, TreeNode* node)
 {
     assert(expression != nullptr);
 
-    if((*node)->leftNode == nullptr || (*node)->rightNode == nullptr)
+    if(node->leftNode == nullptr || node->rightNode == nullptr)
         return;
 
-    optimize_expression(expression, &((*node)->leftNode));
-    optimize_expression(expression, &((*node)->rightNode));
+    optimize_expression(expression, node->leftNode);
+    optimize_expression(expression, node->rightNode);
 
-    NodeData* elem = (NodeData*)((*node)->elem);
-    NodeData* elemLeft = (NodeData*)((*node)->leftNode->elem);
-    NodeData* elemRight = (NodeData*)((*node)->rightNode->elem);
+    NodeData* elem = (NodeData*)(node->elem);
+    NodeData* elemLeft = (NodeData*)(node->leftNode->elem);
+    NodeData* elemRight = (NodeData*)(node->rightNode->elem);
 
     if(elemLeft->type == NUM && elemRight->type == NUM)
     {
@@ -147,22 +147,38 @@ void optimize_expression(Tree* expression, TreeNode** node)
                 break;
         }
 
-        tree_nodes_delete(expression, &(*node)->leftNode);
-        tree_nodes_delete(expression, &(*node)->rightNode);
+        tree_node_delete(expression, node->leftNode);
+        tree_node_delete(expression, node->rightNode);
     }
     else if(elemRight->type == NUM && compare_numbers(elemRight->elem.value, 0) == 0)
     {
         switch(elem->elem.op)
         {
+            case OP_ADD:
+                tree_node_delete(expression, node->rightNode);
+                tree_node_delete(expression, node);
+                if(node == expression->root)
+                    expression->root = node->leftNode;
+                else
+                    tree_link_node(node->parentNode, node->leftNode);
+                break;
+            case OP_SUB:
+                tree_node_delete(expression, node->rightNode);
+                tree_node_delete(expression, node);
+                if(node == expression->root)
+                    expression->root = node->leftNode;
+                else
+                    tree_link_node(node->parentNode, node->leftNode);
+                break;
             case OP_MUL:
-                tree_nodes_delete(expression, &(*node)->leftNode);
-                tree_nodes_delete(expression, &(*node)->rightNode);
+                tree_nodes_delete(expression, node->leftNode);
+                tree_nodes_delete(expression, node->rightNode);
                 elem->type = NUM;
                 elem->elem.value = 0;
                 break;
             case OP_POW:
-                tree_nodes_delete(expression, &(*node)->leftNode);
-                tree_nodes_delete(expression, &(*node)->rightNode);
+                tree_nodes_delete(expression, node->leftNode);
+                tree_nodes_delete(expression, node->rightNode);
                 elem->type = NUM;
                 elem->elem.value = 1;
                 break;
@@ -175,23 +191,87 @@ void optimize_expression(Tree* expression, TreeNode** node)
     {
         switch(elem->elem.op)
         {
+            case OP_ADD:
+                tree_node_delete(expression, node->leftNode);
+                tree_node_delete(expression, node);
+                if(node == expression->root)
+                    expression->root = node->rightNode;
+                else
+                    tree_link_node(node->parentNode, node->rightNode);
+                break;
             case OP_MUL:
-                tree_nodes_delete(expression, &(*node)->rightNode);
-                tree_nodes_delete(expression, &(*node)->leftNode);
+                tree_node_delete(expression, node->rightNode);
+                tree_node_delete(expression, node->leftNode);
                 elem->type = NUM;
                 elem->elem.value = 0;
                 break;
             case OP_DIV:
-                tree_nodes_delete(expression, &(*node)->rightNode);
-                tree_nodes_delete(expression, &(*node)->leftNode);
+                tree_nodes_delete(expression, node->rightNode);
+                tree_nodes_delete(expression, node->leftNode);
                 elem->type = NUM;
                 elem->elem.value = 0;
                 break;
             case OP_POW:
-                tree_nodes_delete(expression, &(*node)->rightNode);
-                tree_nodes_delete(expression, &(*node)->leftNode);
+                tree_nodes_delete(expression, node->rightNode);
+                tree_nodes_delete(expression, node->leftNode);
                 elem->type = NUM;
                 elem->elem.value = 0;
+                break;
+            default:
+                assert("Unknown operator");
+                break;
+        }
+    }
+    else if(elemRight->type == NUM && compare_numbers(elemRight->elem.value, 1) == 0)
+    {
+        switch(elem->elem.op)
+        {
+            case OP_MUL:
+                tree_node_delete(expression, node->rightNode);
+                tree_node_delete(expression, node);
+                if(node == expression->root)
+                    expression->root = node->leftNode;
+                else
+                    tree_link_node(node->parentNode, node->leftNode);
+                break;
+            case OP_DIV:
+                tree_node_delete(expression, node->rightNode);
+                tree_node_delete(expression, node);
+                if(node == expression->root)
+                    expression->root = node->leftNode;
+                else
+                    tree_link_node(node->parentNode, node->leftNode);
+                break;
+            case OP_POW:
+                tree_node_delete(expression, node->rightNode);
+                tree_node_delete(expression, node);
+                if(node == expression->root)
+                    expression->root = node->leftNode;
+                else
+                    tree_link_node(node->parentNode, node->leftNode);
+                break;
+            default:
+                assert("Unknown operator");
+                break;
+        }
+    }
+    else if(elemLeft->type == NUM && compare_numbers(elemLeft->elem.value, 1) == 0)
+    {
+        switch(elem->elem.op)
+        {
+            case OP_MUL:
+                tree_node_delete(expression, node->leftNode);
+                tree_node_delete(expression, node);
+                if(node == expression->root)
+                    expression->root = node->rightNode;
+                else
+                    tree_link_node(node->parentNode, node->rightNode);
+                break;
+            case OP_POW:
+                tree_nodes_delete(expression, node->rightNode);
+                tree_nodes_delete(expression, node->leftNode);
+                elem->type = NUM;
+                elem->elem.value = 1;
                 break;
             default:
                 assert("Unknown operator");
@@ -412,11 +492,12 @@ void get_derivative(const char* nameFile)
     char* buf = get_file_content(nameFile);
     Tree* expression = tree_ctor(elem_ctor, elem_dtor, write_elem);
     get_G(expression, &buf);
-    optimize_expression(expression, &(expression->root));
+    optimize_expression(expression, expression->root);
     tree_graphic_dump(expression,  nameFileDotEx,  nameFilePngEx);
+
     Tree* derivative = tree_ctor(elem_ctor, elem_dtor, write_elem);
     derivative->root = calculate_derivative(expression->root);
-    optimize_expression(derivative, &derivative->root);
+    optimize_expression(derivative, derivative->root);
     tree_graphic_dump(derivative,  nameFileDotDer,  nameFilePngDer);
     print_derivative(nameFileTxtDer, derivative);
 

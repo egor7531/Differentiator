@@ -34,13 +34,15 @@ TreeNode* create_node(TypeElem type, Data elem, TreeNode* leftNode, TreeNode* ri
         assert("Unknown type");
 
     if(leftNode != nullptr)
-        node->leftNode = create_node(((NodeData*)(leftNode->elem))->type,
+        tree_link_node(node, create_node(((NodeData*)(leftNode->elem))->type,
                             ((NodeData*)(leftNode->elem))->elem, leftNode->leftNode,
-                            leftNode->rightNode);
+                            leftNode->rightNode));
+
     if(rightNode != nullptr)
-        node->rightNode = create_node(((NodeData*)(rightNode->elem))->type,
+        tree_link_node(node, create_node(((NodeData*)(rightNode->elem))->type,
                             ((NodeData*)(rightNode->elem))->elem, rightNode->leftNode,
-                            rightNode->rightNode);
+                            rightNode->rightNode));
+
     return node;
 }
 
@@ -87,7 +89,6 @@ TreeNode* get_E(char** buf)
         }
 
         TreeNode* node = create_node(OPERATOR, elem, node1, node2);
-
         node1 = node;
     }
 
@@ -120,7 +121,6 @@ TreeNode* get_T(char** buf)
         }
 
         TreeNode* node = create_node(OPERATOR, elem, node1, node2);
-
         node1 = node;
     }
 
