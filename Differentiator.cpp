@@ -115,9 +115,11 @@ int compare_numbers(double x1, double x2)
 {
     const double DELTA = 0.00001;
 
-    if(abs(x1 - x2) < DELTA)
-        return 0;
-    return x1 - x2;
+    if(x1 - x2 > DELTA)
+        return 1;
+    else if(x2 - x1 > DELTA)
+        return -1;
+    return 0;
 }
 void optimize_expression(Tree* expression, TreeNode* node)
 {
@@ -458,7 +460,6 @@ TreeNode* derivative_ln(TreeNode* expressionNode)
                                     expressionNode->leftNode->leftNode,
                                     expressionNode->leftNode->rightNode);
     elem.op = OP_DIV;
-
     return create_node(OPERATOR, elem, calculate_derivative(expressionNode->leftNode), node);
 }
 
@@ -473,6 +474,44 @@ TreeNode* derivative_sqrt(TreeNode* expressionNode)
     tree_link_node(expressionNode, create_node(NUM, elem, nullptr, nullptr));
 
     return derivative_pow(expressionNode);
+}
+
+TreeNode* derivative_sin(TreeNode* expressionNode)
+{
+    assert(expressionNode != nullptr);
+    Data elem;
+
+    TreeNode* node1 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                    ((NodeData*)(expressionNode->leftNode->elem))->elem,
+                                    expressionNode->leftNode->leftNode,
+                                    expressionNode->leftNode->rightNode);
+    elem.op = OP_COS;
+    TreeNode* node = create_node(OPERATOR, elem, node1, nullptr);
+
+    elem.op = OP_MUL;
+    return create_node(OPERATOR, elem, node, calculate_derivative(expressionNode->leftNode));
+}
+
+TreeNode* derivative_cos(TreeNode* expressionNode)
+{
+    assert(expressionNode != nullptr);
+    Data elem;
+
+    TreeNode* node21 = create_node(((NodeData*)(expressionNode->leftNode->elem))->type,
+                                    ((NodeData*)(expressionNode->leftNode->elem))->elem,
+                                    expressionNode->leftNode->leftNode,
+                                    expressionNode->leftNode->rightNode);
+    elem.op = OP_SIN;
+    TreeNode* node2 = create_node(OPERATOR, elem, node21, nullptr);
+
+    elem.value = -1;
+    TreeNode* node1 = create_node(NUM, elem, nullptr, nullptr);
+
+    elem.op = OP_MUL;
+    TreeNode* node = create_node(OPERATOR, elem, node1, node2);
+
+    elem.op = OP_MUL;
+    return create_node(OPERATOR, elem, node, calculate_derivative(expressionNode->leftNode));
 }
 
 TreeNode* calculate_derivative(TreeNode* expressionNode)
@@ -497,10 +536,10 @@ TreeNode* calculate_derivative(TreeNode* expressionNode)
                 return derivative_ln(expressionNode);
             case OP_SQRT:
                 return derivative_sqrt(expressionNode);
-            /*case OP_SIN:
+            case OP_SIN:
                 return derivative_sin(expressionNode);
             case OP_COS:
-                return derivative_cos(expressionNode);*/
+                return derivative_cos(expressionNode);
             default:
                 assert("Unknown operator");
         }
