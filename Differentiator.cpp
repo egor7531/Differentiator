@@ -102,6 +102,9 @@ void write_elem(FILE* fp, void* elem)
             case OP_SQRT:
                 fprintf(fp, "%s", "sqrt");
                 break;
+            case OP_EXP:
+                fprintf(fp, "%s", "exp");
+                break;
             default:
                 assert("Unknown operator");
                 break;
@@ -121,6 +124,7 @@ int compare_numbers(double x1, double x2)
         return -1;
     return 0;
 }
+
 void optimize_expression(Tree* expression, TreeNode* node)
 {
     assert(expression != nullptr);
@@ -476,6 +480,19 @@ TreeNode* derivative_sqrt(TreeNode* expressionNode)
     return derivative_pow(expressionNode);
 }
 
+TreeNode* derivative_exp(TreeNode* expressionNode)
+{
+    assert(expressionNode != nullptr);
+    Data elem;
+
+    TreeNode* node = create_node(((NodeData*)(expressionNode->elem))->type,
+                                    ((NodeData*)(expressionNode->elem))->elem,
+                                    expressionNode->leftNode,
+                                    expressionNode->rightNode);
+    elem.op = OP_MUL;
+    return create_node(OPERATOR, elem, node, calculate_derivative(expressionNode->leftNode));
+}
+
 TreeNode* derivative_sin(TreeNode* expressionNode)
 {
     assert(expressionNode != nullptr);
@@ -536,6 +553,8 @@ TreeNode* calculate_derivative(TreeNode* expressionNode)
                 return derivative_ln(expressionNode);
             case OP_SQRT:
                 return derivative_sqrt(expressionNode);
+            case OP_EXP:
+                return derivative_exp(expressionNode);
             case OP_SIN:
                 return derivative_sin(expressionNode);
             case OP_COS:
@@ -575,17 +594,33 @@ void print_nodes(FILE* fp, const TreeNode* node)
 
     if(node == nullptr)
         return;
+
     if(((NodeData*)(node->elem))->type == OPERATOR)
-        fprintf(fp, "(");
-    print_nodes(fp, node->leftNode);
-    write_elem(fp, node->elem);
-    print_nodes(fp, node->rightNode);
-    if(((NodeData*)(node->elem))->type == OPERATOR)
-        fprintf(fp, ")");
+    {
+        if(node->leftNode == nullptr || node->rightNode == nullptr)
+        {
+            write_elem(fp, node->elem);
+            fprintf(fp, "(");
+            print_nodes(fp, node->leftNode);
+            fprintf(fp, ")");
+        }
+        else
+        {
+            fprintf(fp, "(");
+            print_nodes(fp, node->leftNode);
+            write_elem(fp, node->elem);
+            print_nodes(fp, node->rightNode);
+            fprintf(fp, ")");
+        }
+    }
+    else
+        write_elem(fp, node->elem);
 }
 
 void get_derivative(const char* nameFile)
 {
+    assert(nameFile != nullptr);
+
     const char* nameFileDotEx  = "Expression.dot";
     const char* nameFilePngEx  = "Expression.png";
     const char* nameFileTxtDer = "Derivative.txt";
@@ -606,4 +641,90 @@ void get_derivative(const char* nameFile)
 
     tree_dtor(expression);
     tree_dtor(derivative);
+}
+
+double derivative_at_point(TreeNode* node, const double point)
+{
+    if(node == nullptr)
+        return NAN;
+
+    NodeData* elem = (NodeData*)(node->elem);
+    if(elem->type == NUM)
+        return elem->elem.value;
+    else if(elem->type == IDENTIFIER)
+        return point;
+
+    double valueLeft  = derivative_at_point(node->leftNode, point);
+    double valueRight = derivative_at_point(node->rightNode, point);
+
+    switch(elem->elem.op)
+    {
+        case OP_ADD:
+            return valueLeft + valueRight;
+        case OP_SUB:
+            return valueLeft - valueRight;
+        case OP_DIV:
+            return valueLeft / valueRight;
+        case OP_MUL:
+            return valueLeft * valueRight;
+        case OP_POW:
+            return pow(valueLeft, valueRight);
+        case OP_SQRT:
+            return sqrt(valueLeft);
+        case OP_SIN:
+            return sin(valueLeft);
+        case OP_COS:
+            return cos(valueLeft);
+        case OP_EXP:
+            return exp(valueLeft);
+        case OP_LN:
+            return log(valueLeft);
+        default:
+            assert("Unknown operator");
+    }
+
+    return NAN;
+}
+
+void get_taylor_series(const char* nameFile, const int order, const double point)
+{
+    assert(nameFile != nullptr);
+    assert(order >= 0);
+
+    const char* nameFileDotEx  = "Expression.dot";
+    const char* nameFilePngEx  = "Expression.png";
+    const char* nameFileTxtTS  = "TaylorSeries.txt";
+    const char* nameFileDotTS  = "TaylorSeries.dot";
+    const char* nameFilePngTS  = "TaylorSeries.png";
+
+    char* buf = get_file_content(nameFile);
+    Tree* expression = tree_ctor(elem_ctor, elem_dtor, write_elem);
+    get_G(expression, &buf);
+    optimize_expression(expression, expression->root);
+    tree_graphic_dump(expression,  nameFileDotEx,  nameFilePngEx);
+
+    Tree* taylorSeries = tree_ctor(elem_ctor, elem_dtor, write_elem);
+    Data elem;
+    if(order == 0)
+    {
+        elem.value = derivative_at_point(expression->root, point);
+        taylorSeries->root = create_node(NUM, elem, nullptr, nullptr);
+    }
+    else
+    {
+        elem.op = OP_ADD;
+        taylorSeries->root = create_node(OPERATOR, elem, expression->root, nullptr);
+        TreeNode* node = taylorSeries->root->rightNode;
+        for(int i = 1; i <= order; i++)
+        {
+
+
+
+        }
+    }
+
+    tree_graphic_dump(taylorSeries,  nameFileDotTS,  nameFilePngTS);
+
+    tree_dtor(expression);
+    tree_dtor(taylorSeries);
 }

@@ -202,6 +202,8 @@ TreeNode* get_ID(char** buf)
             elem.op = OP_LN;
         else if(!strcmp(id, "sqrt"))
             elem.op = OP_SQRT;
+        else if(!strcmp(id, "exp"))
+            elem.op = OP_EXP;
         node = get_E(buf);
         syntax_assert(**buf == ')', "get_ID", buf);
         (*buf)++;

@@ -13,7 +13,8 @@ enum Operators
     OP_LN,
     OP_SIN,
     OP_COS,
-    OP_SQRT
+    OP_SQRT,
+    OP_EXP
 };
 
 enum TypeElem
@@ -37,6 +38,6 @@ struct NodeData
 };
 
 void get_derivative(const char* nameFile);
-void get_taylor_series(const char* nameFile);
+void get_taylor_series(const char* nameFile, const int order, const double point);
 
 #endif //DIFFERENTIATOR_H_INCLUDED
