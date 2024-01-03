@@ -336,15 +336,20 @@ TreeNode* derivative_mul(TreeNode* expressionNode)
                                   expressionNode->rightNode->rightNode);
 
     elem.op = OP_MUL;
-    TreeNode* node1 = create_node(OPERATOR, elem, node11,
-                                calculate_derivative(expressionNode->rightNode));
+    TreeNode* node1 = create_node(OPERATOR, elem, nullptr, nullptr);
+    tree_link_node(node1, node11);
+    tree_link_node(node1, calculate_derivative(expressionNode->rightNode));
 
     elem.op = OP_MUL;
-    TreeNode* node2 = create_node(OPERATOR, elem, node21,
-                                calculate_derivative(expressionNode->leftNode));
+    TreeNode* node2 = create_node(OPERATOR, elem, nullptr, nullptr);
+    tree_link_node(node2, node21);
+    tree_link_node(node2, calculate_derivative(expressionNode->leftNode));
 
     elem.op = OP_ADD;
-    return create_node(OPERATOR, elem, node1, node2);
+    TreeNode* node = create_node(OPERATOR, elem, nullptr, nullptr);
+    tree_link_node(node, node1);
+    tree_link_node(node, node2);
+    return node;
 }
 
 TreeNode* derivative_div(TreeNode* expressionNode)
@@ -696,6 +701,9 @@ void get_taylor_series(const char* nameFile, const int order, const double point
     const char* nameFileTxtTS  = "TaylorSeries.txt";
     const char* nameFileDotTS  = "TaylorSeries.dot";
     const char* nameFilePngTS  = "TaylorSeries.png";
+    const char* nameFileTxtDer = "Derivative.txt";
+
+    int factorial = 1;
 
     char* buf = get_file_content(nameFile);
     Tree* expression = tree_ctor(elem_ctor, elem_dtor, write_elem);
@@ -712,19 +720,59 @@ void get_taylor_series(const char* nameFile, const int order, const double point
     }
     else
     {
+        elem.value = derivative_at_point(expression->root, point);
+        TreeNode* node1 = create_node(NUM, elem, nullptr, nullptr);
+        elem.value = 0;
+        TreeNode* node = create_node(NUM, elem, nullptr, nullptr);
         elem.op = OP_ADD;
-        taylorSeries->root = create_node(OPERATOR, elem, expression->root, nullptr);
-        TreeNode* node = taylorSeries->root->rightNode;
+        taylorSeries->root = create_node(OPERATOR, elem, nullptr, nullptr);
+        tree_link_node(taylorSeries->root, node1);
+        tree_link_node(taylorSeries->root, node);
+        tree_graphic_dump(taylorSeries,  nameFileDotTS,  nameFilePngTS);
+
         for(int i = 1; i <= order; i++)
         {
+            Tree* derivative = tree_ctor(elem_ctor, elem_dtor, write_elem);
+            derivative->root = calculate_derivative(expression->root);
+            optimize_expression(derivative, derivative->root);
+            elem.value = derivative_at_point(derivative->root, point);
 
+            tree_dtor(expression);
+            expression = derivative;
 
+            TreeNode* node111 = create_node(NUM, elem, nullptr, nullptr);
+            factorial *= i;
+            elem.value = factorial;
+            TreeNode* node112 = create_node(NUM, elem, nullptr, nullptr);
+            elem.op = OP_DIV;
+            TreeNode* node11 = create_node(OPERATOR, elem, node111, node112);
 
+            elem.id = strdup("x");
+            TreeNode* node1211 = create_node(IDENTIFIER, elem, nullptr, nullptr);
+            elem.value = point;
+            TreeNode* node1212 = create_node(NUM, elem, nullptr, nullptr);
+            elem.op = OP_SUB;
+            TreeNode* node121 = create_node(OPERATOR, elem, node1211, node1212);
+
+            elem.value = i;
+            TreeNode* node122 = create_node(NUM, elem, nullptr, nullptr);
+            elem.op = OP_POW;
+            TreeNode* node12 = create_node(OPERATOR, elem, node121, node122);
+
+            elem.op = OP_MUL;
+            TreeNode* node1 = create_node(OPERATOR, elem, node11, node12);
+
+            tree_link_node(node, node1);
+            elem.value = 0;
+            tree_link_node(node, create_node(NUM, elem, nullptr, nullptr));
+            ((NodeData*)(node->elem))->type = OPERATOR;
+            ((NodeData*)(node->elem))->elem.op = OP_ADD;
+            node = node->rightNode;
         }
     }
 
+    optimize_expression(taylorSeries, taylorSeries->root);
+    print_derivative(nameFileTxtTS, taylorSeries);
     tree_graphic_dump(taylorSeries,  nameFileDotTS,  nameFilePngTS);
-
-    tree_dtor(expression);
     tree_dtor(taylorSeries);
 }
