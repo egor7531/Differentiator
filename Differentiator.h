@@ -3,19 +3,15 @@
 
 #include "Tree.h"
 
+#define DEF_OP(name, icon, binary_op, code, der)    \
+    name,
+
 enum Operators
 {
-    OP_ADD,
-    OP_SUB,
-    OP_MUL,
-    OP_DIV,
-    OP_POW,
-    OP_LN,
-    OP_SIN,
-    OP_COS,
-    OP_SQRT,
-    OP_EXP
+    #include "Operators.h"
 };
+
+#undef DEF_OP
 
 enum TypeElem
 {

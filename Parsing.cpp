@@ -4,53 +4,23 @@
 #include <string.h>
 
 #include "Parsing.h"
+#include "Utility.h"
 
-TreeNode* get_E(char** buf);
-TreeNode* get_T(char** buf);
-TreeNode* get_POW(char** buf);
-TreeNode* get_P(char** buf);
-TreeNode* get_ID(char** buf);
-TreeNode* get_N(char** buf);
-void syntax_assert(bool flag, const char* nameFunc, char** buf);
+#define SYNTAX_ASSERT(condition) syntax_assert(condition, __func__ , tree, buf);
 
-TreeNode* create_node(TypeElem type, Data elem, TreeNode* leftNode, TreeNode* rightNode)
-{
-    TreeNode* node = (TreeNode*)calloc(1, sizeof(TreeNode));
-    if(node == nullptr)
-        return nullptr;
+TreeNode* get_E(Tree* tree, char** buf);
+TreeNode* get_T(Tree* tree, char** buf);
+TreeNode* get_POW(Tree* tree, char** buf);
+TreeNode* get_P(Tree* tree, char** buf);
+TreeNode* get_ID(Tree* tree, char** buf);
+TreeNode* get_N(Tree* tree, char** buf);
 
-    node->elem = (NodeData*)calloc(1, sizeof(NodeData));
-    if(((NodeData*)(node->elem)) == nullptr)
-        return nullptr;
-
-    ((NodeData*)(node->elem))->type = type;
-    if(type == NUM)
-        ((NodeData*)(node->elem))->elem.value = elem.value;
-    else if(type == IDENTIFIER)
-        ((NodeData*)(node->elem))->elem.id = strdup(elem.id);
-    else if(type == OPERATOR)
-        ((NodeData*)(node->elem))->elem.op = elem.op;
-    else
-        assert("Unknown type");
-
-    if(leftNode != nullptr)
-        tree_link_node(node, create_node(((NodeData*)(leftNode->elem))->type,
-                            ((NodeData*)(leftNode->elem))->elem, leftNode->leftNode,
-                            leftNode->rightNode));
-
-    if(rightNode != nullptr)
-        tree_link_node(node, create_node(((NodeData*)(rightNode->elem))->type,
-                            ((NodeData*)(rightNode->elem))->elem, rightNode->leftNode,
-                            rightNode->rightNode));
-
-    return node;
-}
-
-void syntax_assert(bool flag, const char* nameFunc, char** buf)
+void syntax_assert(bool flag, const char* nameFunc, Tree* tree, char** buf)
 {
     if(!flag)
     {
         printf("\"%s\" error: %s", nameFunc, *buf);
+        tree_dtor(tree);
         abort();
     }
 }
@@ -60,19 +30,19 @@ void get_G(Tree* tree, char** buf)
     assert(tree != nullptr);
     assert(buf != nullptr);
 
-    tree->root = get_E(buf);
-    syntax_assert(**buf == '\0' || **buf == '\r' || **buf == '\n', "get_G", buf);
+    tree->root = get_E(tree, buf);
+    SYNTAX_ASSERT(**buf == '\0' || **buf == '\r' || **buf == '\n');
 }
 
-TreeNode* get_E(char** buf)
+TreeNode* get_E(Tree* tree, char** buf)
 {
-    TreeNode* node1 = get_T(buf);
+    TreeNode* node1 = get_T(tree, buf);
 
     while(**buf == '+' || **buf == '-')
     {
         char op = **buf;
         (*buf)++;
-        TreeNode* node2 = get_T(buf);
+        TreeNode* node2 = get_T(tree, buf);
 
         Data elem;
         switch(op)
@@ -84,7 +54,7 @@ TreeNode* get_E(char** buf)
                 elem.op = OP_SUB;
                 break;
             default:
-                syntax_assert(false, "get_E", buf);
+                SYNTAX_ASSERT(false);
                 break;
         }
 
@@ -95,16 +65,16 @@ TreeNode* get_E(char** buf)
     return node1;
 }
 
-TreeNode* get_T(char** buf)
+TreeNode* get_T(Tree* tree, char** buf)
 {
-    TreeNode* node1 = get_POW(buf);
+    TreeNode* node1 = get_POW(tree, buf);
 
     while(**buf == '*' || **buf == '/')
     {
         char op = **buf;
         (*buf)++;
 
-        TreeNode* node2 = get_POW(buf);
+        TreeNode* node2 = get_POW(tree, buf);
 
         Data elem;
         switch(op)
@@ -116,7 +86,7 @@ TreeNode* get_T(char** buf)
                 elem.op = OP_DIV;
                 break;
             default:
-                syntax_assert(false, "get_T", buf);
+                SYNTAX_ASSERT(false);
                 break;
         }
 
@@ -127,15 +97,15 @@ TreeNode* get_T(char** buf)
     return node1;
 }
 
-TreeNode* get_POW(char** buf)
+TreeNode* get_POW(Tree* tree, char** buf)
 {
-    TreeNode* node1 = get_P(buf);
+    TreeNode* node1 = get_P(tree, buf);
 
     while(**buf == '^')
     {
         char op = **buf;
         (*buf)++;
-        TreeNode* node2 = get_P(buf);
+        TreeNode* node2 = get_P(tree, buf);
 
         Data elem;
         elem.op = OP_POW;
@@ -146,39 +116,34 @@ TreeNode* get_POW(char** buf)
     return node1;
 }
 
-TreeNode* get_P(char** buf)
+TreeNode* get_P(Tree* tree, char** buf)
 {
     TreeNode* node = nullptr;
 
     if(**buf == '(')
     {
         (*buf)++;
-        node = get_E(buf);
-        syntax_assert(**buf == ')', "get_P", buf);
+        node = get_E(tree, buf);
+        SYNTAX_ASSERT(**buf == ')');
         (*buf)++;
         return node;
     }
 
-    node = get_ID(buf);
+    node = get_ID(tree, buf);
     if(node == nullptr)
-        node = get_N(buf);
+        node = get_N(tree, buf);
 
     return node;
 }
 
-TreeNode* get_ID(char** buf)
+TreeNode* get_ID(Tree* tree, char** buf)
 {
     TreeNode* node = nullptr;
     const int MAX_SIZE_ID = 20;
     char id[MAX_SIZE_ID] = {};
     int p = 0;
-    if('a' <= **buf && **buf <= 'z' || 'A' <= **buf && **buf <= 'Z')
-    {
-        id[p] = **buf;
-        (*buf)++;
-        p++;
-    }
-    else
+
+    if(!('a' <= **buf && **buf <= 'z' || 'A' <= **buf && **buf <= 'Z'))
         return nullptr;
 
     while('a' <= **buf && **buf <= 'z' || 'A' <= **buf && **buf <= 'Z' || **buf == '_'
@@ -194,27 +159,27 @@ TreeNode* get_ID(char** buf)
     if(**buf == '(')
     {
         (*buf)++;
-        if(!strcmp(id, "sin"))
-            elem.op = OP_SIN;
-        else if(!strcmp(id, "cos"))
-            elem.op = OP_COS;
-        else if(!strcmp(id, "ln"))
-            elem.op = OP_LN;
-        else if(!strcmp(id, "sqrt"))
-            elem.op = OP_SQRT;
-        else if(!strcmp(id, "exp"))
-            elem.op = OP_EXP;
-        node = get_E(buf);
-        syntax_assert(**buf == ')', "get_ID", buf);
+
+        #define DEF_OP(name, icon, binary_op, code, der)    \
+            if(!strcmp(id, icon) && !binary_op)             \
+                elem.op = name;
+
+        #include "Operators.h"
+
+        #undef DEF_OP
+
+        node = get_E(tree, buf);
+        SYNTAX_ASSERT(**buf == ')');
         (*buf)++;
+
         return create_node(OPERATOR, elem, node, nullptr);
     }
 
-    elem.id = strdup(id);
+    elem.id = id;
     return create_node(IDENTIFIER, elem, nullptr, nullptr);
 }
 
-TreeNode* get_N(char** buf)
+TreeNode* get_N(Tree* tree, char** buf)
 {
     double val = 0;
     char* oldBuf = *buf;
@@ -234,7 +199,7 @@ TreeNode* get_N(char** buf)
             (*buf)++;
         }
     }
-    syntax_assert(oldBuf < *buf, "get_N", buf);
+    SYNTAX_ASSERT(oldBuf < *buf);
 
     Data elem;
     elem.value = val;
