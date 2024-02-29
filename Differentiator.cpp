@@ -11,7 +11,18 @@
 #include "File.h"
 #include "Parsing.h"
 #include "Calculate_derivative.h"
-#include "Utility.h"
+#include "Node.h"
+
+int compare_numbers(double x1, double x2)
+{
+    const double DELTA = 0.00001;
+
+    if(x1 - x2 > DELTA)
+        return 1;
+    else if(x2 - x1 > DELTA)
+        return -1;
+    return 0;
+}
 
 void optimize_expression(Tree* expression, TreeNode* node)
 {
@@ -23,8 +34,8 @@ void optimize_expression(Tree* expression, TreeNode* node)
     optimize_expression(expression, node->leftNode);
     optimize_expression(expression, node->rightNode);
 
-    NodeData* elem = (NodeData*)(node->elem);
-    NodeData* elemLeft = (NodeData*)(node->leftNode->elem);
+    NodeData* elem      = (NodeData*)(node->elem);
+    NodeData* elemLeft  = (NodeData*)(node->leftNode->elem);
     NodeData* elemRight = (NodeData*)(node->rightNode->elem);
 
     if(elemLeft->type == NUM && elemRight->type == NUM)
@@ -137,6 +148,7 @@ void optimize_expression(Tree* expression, TreeNode* node)
                 else
                     tree_link_node(node->parentNode, node->leftNode);
                 break;
+
             case OP_DIV:
                 tree_node_delete(expression, node->rightNode);
                 tree_node_delete(expression, node);

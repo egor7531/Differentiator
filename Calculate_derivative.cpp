@@ -4,7 +4,7 @@
 #include "Calculate_derivative.h"
 #include "Parsing.h"
 #include "Differentiator.h"
-#include "Utility.h"
+#include "Node.h"
 
 TreeNode* derivative_variable()
 {
@@ -165,7 +165,7 @@ TreeNode* derivative_exp(Tree* expression, TreeNode* expressionNode)
     assert(expressionNode != nullptr);
     Data elem;
 
-    TreeNode* node1 = copy_node(expressionNode->leftNode);
+    TreeNode* node1 = copy_node(expressionNode);
 
     elem.op = OP_MUL;
     TreeNode* node = create_node(OPERATOR, elem, node1,

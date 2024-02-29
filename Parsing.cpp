@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "Parsing.h"
-#include "Utility.h"
+#include "Node.h"
 
 #define SYNTAX_ASSERT(condition) syntax_assert(condition, __func__ , tree, buf);
 
